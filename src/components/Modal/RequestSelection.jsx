@@ -15,6 +15,7 @@ import {
   Box,
   Button,
   Input,
+  SimpleGrid,
   InputGroup,
   InputLeftElement,
   useDisclosure,
@@ -204,14 +205,15 @@ const RequestSelection = () => {
                 setWalletAssets(data)
                 console.log(walletAssets)
                 })}>Load assets from a wallet</Button>
-                <Flex h="500px" w="400px" direction={"column"} overflowX={"hidden"} overflowY="scroll">
+                <SimpleGrid maxH="500px" w="400px" justifyContent="center" columns={2} overflowX={"hidden"} overflowY="scroll">
                   {walletAssets.filter(x => typeof(x) !== "undefined" && x.name).map((asset) => (
-                      <Flex w="100px" h={4} p={1} onClick={() => chooseAsset(asset.name)}>
-                        <Image src={getImage(asset.image)} w="100px" h="100px"></Image>
-                        <Heading as="h4" mx="auto" my={1}>{asset.name}</Heading>
+                      <Flex w="150px" direction={"column"} p={1} _hover={{cursor: "pointer"}} onClick={() => chooseAsset(asset.name)}>
+                        <Image src={getImage(asset.image)} w="150px" h="150px"></Image>
+                        <Flex mx="auto" my={1}>{asset.name}</Flex>
+                        {/* <Heading as="h4" mx="auto" my={1}>{asset.name}</Heading> */}
                       </Flex>
                   ))}
-                </Flex>
+                </SimpleGrid>
               </>
             </ModalBody>
 
