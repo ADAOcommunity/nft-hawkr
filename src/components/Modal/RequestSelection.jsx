@@ -13,6 +13,7 @@ import {
   Image,
   Box,
   Button,
+  Heading,
   Input,
   InputGroup,
   InputLeftElement,
@@ -68,7 +69,6 @@ const blockfrostRequest = async (endpoint, headers, body) => {
 const getAllAssets = async (addr) => {
   if(addr === '') return []
   const utxos = await blockfrostRequest(`/addresses/${addr}/utxos`)
-  console.log(utxos)
   let assetsNameList = []
   utxos.forEach((utxo) => {
     utxo.amount.forEach((amnt) => {
@@ -84,8 +84,8 @@ const getAllAssets = async (addr) => {
       return { name: asset.onchain_metadata.name, image: asset.onchain_metadata.image, encodedFullName: assetEncoded}
     }
   })
-  assets.forEach( asset => asset.then((val) => {console.log(val)}))
-  return assets
+  
+  return assets.map(asset => asset.then((val) => val))
 }
 
 const isBrowser = () => typeof window !== "undefined";
@@ -113,8 +113,8 @@ const RequestSelection = () => {
       }
     }
 
-    const chooseAsset = (val) => {
-      const ast = walletAssets[val]
+    const chooseAsset = (asName) => {
+      var ast = walletAssets.find(wa => wa.name == asName)
       if(ast && ast.name && ast.encodedFullName) {
         setTName(ast.name)
         setPolicy(ast.encodedFullName.substring(0,56))
