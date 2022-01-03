@@ -199,20 +199,20 @@ const RequestSelection = () => {
               <TokenNameInput/>
               <NumberOfAsset/>
               <p>Please input the number desired above. This form is for your requested value.</p>
-              {isBrowser ? <><Button onClick={() => loadWalletAssets().then(data => {
+              <>
+                <Button onClick={() => loadWalletAssets().then(data => {
                 setWalletAssets(data)
                 console.log(walletAssets)
                 })}>Load assets from a wallet</Button>
                 <Flex h="500px" w="400px" direction={"column"} overflowX={"hidden"} overflowY="scroll">
-                  {walletAssets.map((asset) => (
-                    typeof(asset) !== "undefined" && asset.name ?
+                  {walletAssets.filter(x => typeof(x) !== "undefined" && x.name).map((asset) => (
                       <Flex w="100px" h={4} p={1} onClick={() => chooseAsset(asset.name)}>
                         <Image src={getImage(asset.image)} w="100px" h="100px"></Image>
                         <Heading as="h4" mx="auto" my={1}>{asset.name}</Heading>
-                      </Flex> : <></>
+                      </Flex>
                   ))}
                 </Flex>
-              </>:<></>} 
+              </>
             </ModalBody>
 
             <ModalFooter>
