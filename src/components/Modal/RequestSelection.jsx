@@ -11,9 +11,9 @@ import {
   NumberInputField,
   Flex,
   Image,
+  Heading,
   Box,
   Button,
-  Heading,
   Input,
   InputGroup,
   InputLeftElement,
@@ -69,6 +69,7 @@ const blockfrostRequest = async (endpoint, headers, body) => {
 const getAllAssets = async (addr) => {
   if(addr === '') return []
   const utxos = await blockfrostRequest(`/addresses/${addr}/utxos`)
+  console.log(utxos)
   let assetsNameList = []
   utxos.forEach((utxo) => {
     utxo.amount.forEach((amnt) => {
@@ -78,15 +79,18 @@ const getAllAssets = async (addr) => {
     })
   })
 
-  const assets = assetsNameList.map(async (assetEncoded) => {
-    const asset = await blockfrostRequest(`/assets/${assetEncoded}`)
-    if(asset.onchain_metadata && asset.onchain_metadata.name && asset.onchain_metadata.image) {
-      return { name: asset.onchain_metadata.name, image: asset.onchain_metadata.image, encodedFullName: assetEncoded}
-    }
-  })
-  
-  return assets.map(asset => asset.then((val) => val))
+  const assets = async () => { 
+    return Promise.all(assetsNameList.map(async (assetEncoded) => {
+      const asset = await blockfrostRequest(`/assets/${assetEncoded}`)
+      if(asset.onchain_metadata && asset.onchain_metadata.name && asset.onchain_metadata.image) {
+        return { name: asset.onchain_metadata.name, image: asset.onchain_metadata.image, encodedFullName: assetEncoded}
+      }
+  }))}
+  // assets.forEach( asset => asset.then((val) => {console.log(val)}))
+  return assets()
 }
+
+
 
 const isBrowser = () => typeof window !== "undefined";
 
@@ -98,55 +102,52 @@ const RequestSelection = () => {
     let [policy, setPolicy] = React.useState("");
     let [tName, setTName] = React.useState("");
     let [tNum, setTNum] = React.useState('0');
-    let [walletAssets, setWalletAssets] = React.useState([]);
-    const parse = (val) => val.replace(/^\$/, '')
-    const handleTokenNameChange = event => setTName(event.target.value);
-    const handlePolicyChange = event => setPolicy(event.target.value);
+    let [walletAssets, setWalletAssets] = React.useState([{}]);
+   
 
     const toast = useToast();
 
-    const loadWalletAssets = async () => {
-      const addr1 = await addressToBech32()
-      if(addr1){ setWalletAssets(
-          await getAllAssets(addr1)
-        )
-      }
-    }
-
-    const chooseAsset = (asName) => {
-      var ast = walletAssets.find(wa => wa.name == asName)
-      if(ast && ast.name && ast.encodedFullName) {
-        setTName(ast.name)
-        setPolicy(ast.encodedFullName.substring(0,56))
-      }
-    }
-
-
     const PolicyInput = () => {
+      [policy, setPolicy] = React.useState("");
+      const handleChange = event => setPolicy(event.target.value);
+    
       return (
         <>
           <Input
             value={policy}
-            onChange={handlePolicyChange}
+            onChange={handleChange}
             placeholder="Policy ID"
           />
         </>
       );
     };
-
+    
     const TokenNameInput = () => {
+      [tName, setTName] = React.useState("");
+      const handleChange = event => setTName(event.target.value);
+    
       return (
         <>
           <Input
             value={tName}
-            onChange={handleTokenNameChange}
+            onChange={handleChange}
             placeholder="Token Name"
           />
         </>
       );
     };
 
+    const loadWalletAssets = async () => {
+      const addr1 = await addressToBech32()
+      if(addr1){ 
+        return await getAllAssets(addr1)
+      }
+    }
+    
     const NumberOfAsset = () => {
+      [tNum, setTNum] = React.useState('0');
+      const parse = (val) => val.replace(/^\$/, '')
+    
       return (
         <NumberInput
           onChange={(valueString) => setTNum(parse(valueString))}
@@ -155,6 +156,16 @@ const RequestSelection = () => {
           <NumberInputField />
         </NumberInput>
       )
+    }
+    
+    const chooseAsset = (asName) => {
+      console.log("chooseAsset")
+      console.log(asName)
+      var ast = walletAssets.find(wa => typeof(wa) !== "undefined" && wa.name == asName)
+      if(ast && ast.name && ast.encodedFullName) {
+        setTName(ast.name)
+        setPolicy(ast.encodedFullName.substring(0,56))
+      }
     }
 
     const addAssets = () => {
@@ -167,8 +178,8 @@ const RequestSelection = () => {
     }
 
     const getImage = (asset) => {
-      if(asset.image) {
-        return `https://ipfs.blockfrost.dev/ipfs/${asset.image.replace("ipfs://")}` 
+      if(asset != '') {
+        return `https://ipfs.blockfrost.dev/ipfs/${asset.replace("ipfs://")}` 
       } else {
         return "/somedefaultpic.png"
       }
@@ -188,15 +199,20 @@ const RequestSelection = () => {
               <TokenNameInput/>
               <NumberOfAsset/>
               <p>Please input the number desired above. This form is for your requested value.</p>
-              <Button onClick={() => loadWalletAssets()}>Load assets from a wallet</Button>
-              {walletAssets ? walletAssets.map((asset) => {
-                <Flex p={1} onClick={chooseAsset(asset.name)}>
-                  <Image src={getImage(asset.image)} w="100px" h="100px"></Image>
-                  <Heading as="h4" mx="auto" my={1}>{asset.name}</Heading>
+              {isBrowser ? <><Button onClick={() => loadWalletAssets().then(data => {
+                setWalletAssets(data)
+                console.log(walletAssets)
+                })}>Load assets from a wallet</Button>
+                <Flex h="500px" w="400px" direction={"column"} overflowX={"hidden"} overflowY="scroll">
+                  {walletAssets.map((asset) => (
+                    typeof(asset) !== "undefined" && asset.name ?
+                      <Flex w="100px" h={4} p={1} onClick={() => chooseAsset(asset.name)}>
+                        <Image src={getImage(asset.image)} w="100px" h="100px"></Image>
+                        <Heading as="h4" mx="auto" my={1}>{asset.name}</Heading>
+                      </Flex> : <></>
+                  ))}
                 </Flex>
-              })
-                : <></>
-              }
+              </>:<></>} 
             </ModalBody>
 
             <ModalFooter>
