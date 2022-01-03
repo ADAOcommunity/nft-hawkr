@@ -9,6 +9,8 @@ import {
   ModalCloseButton,
   NumberInput,
   NumberInputField,
+  Flex,
+  Image,
   Box,
   Button,
   Input,
@@ -27,6 +29,8 @@ import {
 import { fromAscii } from "../../cardano/market/utils";
 import { UnitDisplay } from "../UnitDisplay";
 import { useStoreActions, useStoreState } from "easy-peasy";
+import Loader from "../../cardano/loader";
+import secrets from "../../secrets";//PROJECT_ID
 
 const toUnit = (amount, decimals = 6) => {
   const result = parseFloat(amount.replace(/[,\s]/g, ""))
@@ -36,6 +40,53 @@ const toUnit = (amount, decimals = 6) => {
   else if (result == "NaN") return "0";
   return result;
 };
+
+const addressToBech32 = async () => {
+  if(window.cardano.isEnabled()) {
+    await Loader.load();
+    const address = (await window.cardano.getUsedAddresses())[0];
+    return Loader.Cardano.Address.from_bytes(
+      Buffer.from(address, "hex")
+    ).to_bech32();
+  } else {
+    return ""
+  }
+};
+
+const blockfrostRequest = async (endpoint, headers, body) => {
+  return await fetch('https://cardano-testnet.blockfrost.io/api/v0' + endpoint, {
+    headers: {
+      project_id: secrets.PROJECT_ID,
+      ...headers,
+      "User-Agent": "cardano-escrow",
+    },
+    method: body ? "POST" : "GET",
+    body,
+  }).then((res) => res.json());
+}
+
+const getAllAssets = async (addr) => {
+  if(addr === '') return []
+  const utxos = await blockfrostRequest(`/addresses/${addr}/utxos`)
+  console.log(utxos)
+  let assetsNameList = []
+  utxos.forEach((utxo) => {
+    utxo.amount.forEach((amnt) => {
+      if(amnt.unit !== 'lovelace' && !assetsNameList.includes(amnt.unit)) {
+        assetsNameList.push(amnt.unit)
+      }
+    })
+  })
+
+  const assets = assetsNameList.map(async (assetEncoded) => {
+    const asset = await blockfrostRequest(`/assets/${assetEncoded}`)
+    if(asset.onchain_metadata && asset.onchain_metadata.name && asset.onchain_metadata.image) {
+      return { name: asset.onchain_metadata.name, image: asset.onchain_metadata.image, encodedFullName: assetEncoded}
+    }
+  })
+  assets.forEach( asset => asset.then((val) => {console.log(val)}))
+  return assets
+}
 
 const isBrowser = () => typeof window !== "undefined";
 
@@ -47,17 +98,36 @@ const RequestSelection = () => {
     let [policy, setPolicy] = React.useState("");
     let [tName, setTName] = React.useState("");
     let [tNum, setTNum] = React.useState('0');
+    let [walletAssets, setWalletAssets] = React.useState([]);
+    const parse = (val) => val.replace(/^\$/, '')
+    const handleTokenNameChange = event => setTName(event.target.value);
+    const handlePolicyChange = event => setPolicy(event.target.value);
+
     const toast = useToast();
 
+    const loadWalletAssets = async () => {
+      const addr1 = await addressToBech32()
+      if(addr1){ setWalletAssets(
+          await getAllAssets(addr1)
+        )
+      }
+    }
+
+    const chooseAsset = (val) => {
+      const ast = walletAssets[val]
+      if(ast && ast.name && ast.encodedFullName) {
+        setTName(ast.name)
+        setPolicy(ast.encodedFullName.substring(0,56))
+      }
+    }
+
+
     const PolicyInput = () => {
-      [policy, setPolicy] = React.useState("");
-      const handleChange = event => setPolicy(event.target.value);
-    
       return (
         <>
           <Input
             value={policy}
-            onChange={handleChange}
+            onChange={handlePolicyChange}
             placeholder="Policy ID"
           />
         </>
@@ -65,14 +135,11 @@ const RequestSelection = () => {
     };
 
     const TokenNameInput = () => {
-      [tName, setTName] = React.useState("");
-      const handleChange = event => setTName(event.target.value);
-    
       return (
         <>
           <Input
             value={tName}
-            onChange={handleChange}
+            onChange={handleTokenNameChange}
             placeholder="Token Name"
           />
         </>
@@ -80,9 +147,6 @@ const RequestSelection = () => {
     };
 
     const NumberOfAsset = () => {
-      [tNum, setTNum] = React.useState('0');
-      const parse = (val) => val.replace(/^\$/, '')
-    
       return (
         <NumberInput
           onChange={(valueString) => setTNum(parse(valueString))}
@@ -102,6 +166,14 @@ const RequestSelection = () => {
       })
     }
 
+    const getImage = (asset) => {
+      if(asset.image) {
+        return `https://ipfs.blockfrost.dev/ipfs/${asset.image.replace("ipfs://")}` 
+      } else {
+        return "/somedefaultpic.png"
+      }
+    }
+
     return (
       <>
         <Button onClick={onOpen}>Select Assets to Request</Button>
@@ -116,6 +188,15 @@ const RequestSelection = () => {
               <TokenNameInput/>
               <NumberOfAsset/>
               <p>Please input the number desired above. This form is for your requested value.</p>
+              <Button onClick={() => loadWalletAssets()}>Load assets from a wallet</Button>
+              {walletAssets ? walletAssets.map((asset) => {
+                <Flex p={1} onClick={chooseAsset(asset.name)}>
+                  <Image src={getImage(asset.image)} w="100px" h="100px"></Image>
+                  <Heading as="h4" mx="auto" my={1}>{asset.name}</Heading>
+                </Flex>
+              })
+                : <></>
+              }
             </ModalBody>
 
             <ModalFooter>
