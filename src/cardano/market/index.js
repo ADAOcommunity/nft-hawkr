@@ -30,15 +30,32 @@ const CONTRACT = () => {
 
 const CONTRACT_ADDRESS = () =>
   Loader.Cardano.Address.from_bech32(
-    "addr_test1wrar7ewvyxc4h8sg9xgmk8kyyzlpktsmcpwnakp24nuh8ucma9934"
+    //"addr_test1wrar7ewvyxc4h8sg9xgmk8kyyzlpktsmcpwnakp24nuh8ucma9934"
+    "addr_test1wqwkldau5tz2w4ju4r7ulz5hlfm60dlq89mc30ype4hxx9cqkcj6h"
   );
 
 // Datums -- This is going to take a bit to unpack everything and then we need to construct our transactions.
 const OFFER = ({ tradeOwner, requestedAmount, privateRecip }) => {
+  /* - This was used while trying to troubleshoot datum serialization.
+  const fieldsInner = Loader.Cardano.PlutusList.new();
+  fieldsInner.add(Loader.Cardano.PlutusData.new_bytes(fromHex(tradeOwner)));
+  fieldsInner.add(Loader.Cardano.PlutusData.new_map(Loader.Cardano.PlutusMap.from_bytes(
+    toHex(fromAscii('{"", {"", 1000000}}'))
+  )));
+  fieldsInner.add(Loader.Cardano.PlutusData.new_bytes(fromHex(privateRecip)));
+  const tradeDetails = Loader.Cardano.PlutusList.new();
+  tradeDetails.add(
+    Loader.Cardano.PlutusData.new_constr_plutus_data(
+      Loader.Cardano.ConstrPlutusData.new(
+        Loader.Cardano.Int.new_i32(0),
+        fieldsInner
+      )
+    )
+  );*/
+
   const fieldsInner = Loader.Cardano.PlutusList.new();
   fieldsInner.add(Loader.Cardano.PlutusData.new_bytes(fromHex(tradeOwner)));
   fieldsInner.add(Loader.Cardano.PlutusData.new_bytes(requestedAmount));
-      //Loader.Cardano.BigInt.from(requestedAmount)
   fieldsInner.add(Loader.Cardano.PlutusData.new_bytes(fromHex(privateRecip)));
   const tradeDetails = Loader.Cardano.PlutusList.new();
   tradeDetails.add(
@@ -62,6 +79,16 @@ const DATUM_TYPE = {
   Offer: 0,
 }
 
+// ""transaction submit error ShelleyTxValidationError ShelleyBasedEraAlonzo (ApplyTxError [UtxowFailure (WrappedShelleyEraFailure (UtxoFailure 
+// (UtxosFailure (ValidationTagMismatch (IsValid True) (FailedUnexpectedly [PlutusFailure \"\\n
+// The 3 arg plutus script (PlutusScript ScriptHash \\\"fa3f65cc21b15b9e082991bb1ec420be1b2e1bc05d3ed82aacf973f3\\\") fails.\\nCek
+// Error An error has occurred:  User error:\\nThe provided Plutus code called 'error'.\\n
+// The data is: Constr 0 [
+                // Constr 0 [
+                  // B \\\"\\\\254\\\\t!\\\\207\\\\165;-\\\\238\\\\242\\\\SI\\\\CANRX\\\\248\\\\1
+                  // 88n\\\\DC2z\\\\182\\\\250\\\\DLE\\\\132\\\\230/\\\\b0\\\\221\\\\239\\\",B \\\"\\\",
+                  // B \\\"\\\\254\\\\t!\\\\207\\\\165;-\\\\238\\\\242\\\\SI\\\\CANRX\\\\248\\\\1"
+
 const BUY = (index) => {
   const redeemerData = Loader.Cardano.PlutusData.new_constr_plutus_data(
     Loader.Cardano.ConstrPlutusData.new(
@@ -74,8 +101,9 @@ const BUY = (index) => {
     Loader.Cardano.BigNum.from_str(index),
     redeemerData,
     Loader.Cardano.ExUnits.new(
-      Loader.Cardano.BigNum.from_str("62200"),
-      Loader.Cardano.BigNum.from_str("18489133")
+      Loader.Cardano.BigNum.from_str("694200"),
+      Loader.Cardano.BigNum.from_str("300000000")
+                                   // 19489133")
     )
   );
   return redeemer;
@@ -93,8 +121,9 @@ const CANCEL = (index) => {
     Loader.Cardano.BigNum.from_str(index),
     redeemerData,
     Loader.Cardano.ExUnits.new(
-      Loader.Cardano.BigNum.from_str("62200"),
-      Loader.Cardano.BigNum.from_str("18489133")
+      Loader.Cardano.BigNum.from_str("694200"),
+      Loader.Cardano.BigNum.from_str("300000000")
+                                  //  19489133")
     )
   );
   return redeemer;
@@ -141,24 +170,32 @@ class Escrow {
       `/addresses/${CONTRACT_ADDRESS().to_bech32()}/utxos`
     );
 
+    utxos.filter(async (utxo) => {
+      let assetValue = assetsToValue(utxo.amount)
+      if (assetValue.compare(offer) == 1) {
+        return true;
+      } else {
+        return false;
+      }
+    })
+
+    console.log(JSON.stringify(utxos))
+
     return await Promise.all(
       utxos.map(async (utxo) => {
-        if (assetsToValue(utxo.amount) == offer) {
-          return {
-            offer,
-            utxo: Loader.Cardano.TransactionUnspentOutput.new(
-              Loader.Cardano.TransactionInput.new(
-                Loader.Cardano.TransactionHash.from_bytes(fromHex(utxo.tx_hash)),
-                utxo.output_index
-              ),
-              Loader.Cardano.TransactionOutput.new(
-                CONTRACT_ADDRESS(),
-                assetsToValue(utxo.amount)
-              )
+        return {
+          offer,
+          utxo: Loader.Cardano.TransactionUnspentOutput.new(
+            Loader.Cardano.TransactionInput.new(
+              Loader.Cardano.TransactionHash.from_bytes(fromHex(utxo.tx_hash)),
+              utxo.output_index
             ),
-          };
-        }
-        throw new Error("The utxo value did not match the offer expected.");
+            Loader.Cardano.TransactionOutput.new(
+              CONTRACT_ADDRESS(),
+              assetsToValue(utxo.amount)
+            )
+          ),
+        };
       })
     );
   }
@@ -191,29 +228,49 @@ class Escrow {
     return { txBuilder, datums, metadata, outputs };
   }
 
+  /*const createTxOutput = (address, value, { datum } = {}) => {
+    const minAda = Cardano.Instance.min_ada_required(
+      value,
+      Cardano.Instance.BigNum.from_str(getProtocolParameters().coinsPerUtxoWord),
+      datum && Cardano.Instance.hash_plutus_data(datum)
+    );
+  
+    if (minAda.compare(value.coin()) === 1) value.set_coin(minAda);
+  
+    const output = Cardano.Instance.TransactionOutput.new(address, value);
+  
+    if (datum) {
+      output.set_data_hash(Cardano.Instance.hash_plutus_data(datum));
+    }
+  
+    return output;
+  };*/
+
   /**
    * @private
    */
   createOutput(
     address,
     value,
-    { datum, index, tradeOwnerAddress, metadata } = {}
+    { datum, tradeOwnerAddress, metadata } = {}
   ) {
-    const v = value;
     const minAda = Loader.Cardano.min_ada_required(
-      v,
+      value,
       Loader.Cardano.BigNum.from_str(this.protocolParameters.minUtxo),
       datum && Loader.Cardano.hash_plutus_data(datum)
     );
-    if (minAda.compare(v.coin()) == 1) v.set_coin(minAda);
-    const output = Loader.Cardano.TransactionOutput.new(address, v);
+
+    if (minAda.compare(value.coin()) == 1) value.set_coin(minAda);
+    const output = Loader.Cardano.TransactionOutput.new(address, value);
+
     if (datum) {
       output.set_data_hash(Loader.Cardano.hash_plutus_data(datum));
-      // metadata[DATUM_LABEL][index] = "0x" + toHex(datum.to_bytes());
     }
+
     if (tradeOwnerAddress) {
       metadata[ADDRESS_LABEL].address = "0x" + toHex(tradeOwnerAddress.to_address().to_bytes());
     }
+
     return output;
   }
 
@@ -241,6 +298,7 @@ class Escrow {
     scriptUtxo,
     action,
   }) {
+    console.log(outputs)
     const transactionWitnessSet = Loader.Cardano.TransactionWitnessSet.new();
     let { input, change } = CoinSelection.randomImprove(
       utxos,
@@ -394,7 +452,6 @@ class Escrow {
   async load() {
     await Loader.load();
     const p = await this.blockfrostRequest(`/epochs/latest/parameters`);
-    console.log(JSON.stringify(p));
     this.protocolParameters = {
       linearFee: {
         minFeeA: p.min_fee_a.toString(),
@@ -412,14 +469,16 @@ class Escrow {
     this.contractInfo = {
       owner1: {
         address: Loader.Cardano.Address.from_bech32(
-          "addr1w967qqlqwjwwg5lugxvnx2taudl5apvnynw8n5g4dvmfn7g0j8gtz"
+          //"addr1w967qqlqwjwwg5lugxvnx2taudl5apvnynw8n5g4dvmfn7g0j8gtz"
+          "addr_test1wp67qqlqwjwwg5lugxvnx2taudl5apvnynw8n5g4dvmfn7g56n5y8"
         ),
         fee1: Loader.Cardano.BigNum.from_str("1000"), // 1.0%
         fee2: Loader.Cardano.BigNum.from_str("1111"), // 0.9%
       },
       owner2: {
         address: Loader.Cardano.Address.from_bech32(
-          "addr1wy02upg5vew7dty35za98pl8v36whk5ucux8xqwt0gf9ycglp29ku"
+          // "addr1wy02upg5vew7dty35za98pl8v36whk5ucux8xqwt0gf9ycglp29ku"
+          "addr_test1wq02upg5vew7dty35za98pl8v36whk5ucux8xqwt0gf9ycgyf7eee"
         ),
         fee: Loader.Cardano.BigNum.from_str("10000"), // 0.1%
       },
@@ -482,35 +541,98 @@ class Escrow {
     if (offerUtxo.length === 1) {
       return offerUtxo[0];
     }
-    return null;
+    if (offerUtxo.length === 0) {
+      return null;
+    }
+    console.log("DANGER: Multiple potentially valid offers in the script.")
+    return offerUtxo[0];
   }
 
   async purchase(tradeOwnerAddress, offer, requestedAmount) {
-    const { txBuilder, datums, outputs } = await this.initTx();
+    const { txBuilder, datums, metadata, outputs } = await this.initTx();
+
+    const nTradeOwnerAddress = Loader.Cardano.BaseAddress.from_address(
+      Loader.Cardano.Address.from_bech32(
+        tradeOwnerAddress
+      )
+    );
+    // console.log(nTradeOwnerAddress.payment_cred().to_keyhash().to_bytes())
+
     const walletAddress = Loader.Cardano.BaseAddress.from_address(
-      Loader.Cardano.RewardAddress.from_bytes(
+      Loader.Cardano.Address.from_bytes(
         fromHex((await window.cardano.getUsedAddresses())[0])
       )
     );
+    // console.log(walletAddress.payment_cred().to_keyhash().to_bytes())
 
     const utxos = (await window.cardano.getUtxos()).map((utxo) =>
       Loader.Cardano.TransactionUnspentOutput.from_bytes(fromHex(utxo))
     );
+    console.log(JSON.stringify(utxos))
 
-    const offerUtxo = this.getOffer(offer);
+    const offerUtxo = await this.getOffer(offer);
+    if (offerUtxo == null) {
+      throw "Offer is null.";
+    }
 
     const offerDatum = OFFER({
-      tradeOwner: toHex(tradeOwnerAddress.payment_cred().to_keyhash().to_bytes()),
+      tradeOwner: toHex(nTradeOwnerAddress.payment_cred().to_keyhash().to_bytes()),
       requestedAmount: requestedAmount,
-      privateRecip: toHex(tradeOwnerAddress.payment_cred().to_keyhash().to_bytes())
+      privateRecip: toHex(nTradeOwnerAddress.payment_cred().to_keyhash().to_bytes())
     });
     datums.add(offerDatum);
 
-    const value = offerUtxo.output().amount();
+    const numDatum = Loader.Cardano.PlutusData.new_bytes(42)
 
-    outputs.add(this.createOutput(walletAddress.to_address(), value)); // buyer receiving Offer
-    outputs.add(this.createOutput(this.contractInfo.owner1.address, assetsToValue([{unit: "lovelace", quantity: "4000000"}])));
-    outputs.add(this.createOutput(this.contractInfo.owner2.address, assetsToValue([{unit: "lovelace", quantity: "1000000"}])));
+    const value = offerUtxo.utxo.output().amount();
+
+    outputs.add(
+      this.createOutput(
+        walletAddress.to_address(),
+        value,
+        {index:0}
+      )); // buyer receiving Offer
+   
+    console.log("requestedAmount: " + valueToAssets(requestedAmount));
+    outputs.add(
+      this.createOutput(
+        nTradeOwnerAddress.to_address(),
+        /*assetsToValue([
+          {
+            unit: "lovelace"
+          , quantity: "1000000"
+          },
+          { unit: "74f43bdf645aaeb25f39c6392cdb771ff4eb4da0c017cc183c490b8f" + fromAscii("csnft12")
+          , quantity: "1"
+          }
+        ]),*/
+        requestedAmount,
+        {index:1}
+      ));
+
+    outputs.add(
+      this.createOutput(
+        this.contractInfo.owner1.address,
+        assetsToValue([{unit: "lovelace", quantity: "4000000"}]),
+        {
+          datum: numDatum,
+          index: 2
+        }
+      )
+    );
+    datums.add(numDatum);
+
+    outputs.add(
+      this.createOutput(
+        this.contractInfo.owner2.address,
+        assetsToValue([{unit: "lovelace", quantity: "1000000"}]),
+        {
+          datum: numDatum,
+          index: 3
+        }
+      )
+    );
+    datums.add(numDatum);
 
     const requiredSigners = Loader.Cardano.Ed25519KeyHashes.new();
     requiredSigners.add(walletAddress.payment_cred().to_keyhash());
@@ -550,7 +672,7 @@ class Escrow {
     });
     datums.add(offerDatum);
 
-    const value = offerUtxo.output().amount();
+    const value = offerUtxo.utxo.output().amount();
 
     outputs.add(this.createOutput(walletAddress.to_address(), value)); // Seller canceling offer.
 

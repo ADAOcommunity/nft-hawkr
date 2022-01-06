@@ -40,7 +40,7 @@ import { useMemo } from "react";
 import * as yup from "yup";
 
 import Market from "../cardano/market";
-import { fromAscii, assetsToValue } from "../cardano/market/utils";
+import { fromAscii, assetsToValue, assetsToDatum } from "../cardano/market/utils";
 import { Address } from "../cardano/market/custom_modules/@emurgo/cardano-serialization-lib-browser/cardano_serialization_lib";
 
 function fromHex(hex) {
@@ -59,6 +59,7 @@ const Profile = ({ pageContext: { g } }) => {
   React.useEffect(() => {
     loadMarket();
   }, []);
+  const connected = useStoreState((state) => state.connection.connected);
   const firstUpdate = React.useRef(true);
   React.useEffect(() => {
     if (firstUpdate.current) {
@@ -67,7 +68,6 @@ const Profile = ({ pageContext: { g } }) => {
     }
   }, [connected]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const connected = useStoreState((state) => state.connection.connected);
   const offerList = useStoreState((state) => state.offers.offerList)
   const requestList = useStoreState((state) => state.requests.requestList)
   const addRequest = useStoreActions(
@@ -98,10 +98,6 @@ const Profile = ({ pageContext: { g } }) => {
         market.current.purchase(addressIn, assetsToValue(requestList), assetsToValue(offerList));
       } catch (e) {}
     }
-    console.log(tradeType);
-    console.log(requestList);
-    console.log(offerList);
-    // TODO - If the user does not sign the requested signature they will receive an error screen. This just requires a reload.
   }
 
   const cancelOffer = async () => {

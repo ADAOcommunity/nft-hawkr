@@ -48,6 +48,54 @@ export const assetsToValue = (assets) => {
   return value;
 };
 
+export const assetsToDatum = (assets) => {
+  console.log(assets)
+  const multiAsset = Loader.Cardano.PlutusMap.new();
+  const lovelace = assets.find((asset) => asset.unit === "lovelace");
+  const loveMap = Loader.Cardano.PlutusMap.new();
+  const lovelaceName = Loader.Cardano.new_bytes(fromHex(""));
+  const lovelaceVal = Loader.Cardano.new_integer(
+    Loader.Cardano.from_str("0")
+  )
+  loveMap.insert(
+    lovelaceName,
+    lovelaceVal
+  )
+  console.log("checkpoint 1")
+  multiAsset.insert(
+    Loader.Cardano.PlutusData.new_bytes(""),
+    loveMap
+  );
+  console.log("checkpoint 2")
+  const policies = [
+    ...new Set(
+      assets
+        .filter((asset) => asset.unit !== "lovelace")
+        .map((asset) => asset.unit.slice(0, 56))
+    ),
+  ];
+  console.log("checkpoint 3")
+  policies.forEach((policy) => {
+    const policyAssets = assets.filter(
+      (asset) => asset.unit.slice(0, 56) === policy
+    );
+    const assetsValue = Loader.Cardano.PlutusMap.new();
+    policyAssets.forEach((asset) => {
+      assetsValue.insert(
+        Loader.Cardano.PlutusData.new_bytes(fromHex(Buffer.from(asset.unit.slice(56), "hex"))),
+        Loader.Cardano.PlutusData.new_integer(
+          Loader.Cardano.BigNum.from_str(asset.quantity)
+        )
+      );
+    });
+    multiAsset.insert(
+      Loader.Cardano.PlutusData.new_bytes(fromHex(Buffer.from(policy, "hex"))),
+      assetsValue
+    );
+  });
+  return multiAsset;
+};
+
 export const valueToAssets = (value) => {
   const assets = [];
   assets.push({ unit: "lovelace", quantity: value.coin().to_str() });

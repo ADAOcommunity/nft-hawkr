@@ -1,5 +1,5 @@
 module.exports = {
-  pathPrefix: `/yoctodao-ui`,
+  pathPrefix: `/nft-hawkr`,
   plugins: [
     `gatsby-transformer-sharp`,
     `gatsby-plugin-sharp`,
