@@ -53,19 +53,6 @@ const OFFER = ({ tradeOwner, requestedAmount, privateRecip }) => {
     )
   );
 
-  /*const fieldsInner = Loader.Cardano.PlutusList.new();
-  fieldsInner.add(Loader.Cardano.PlutusData.new_bytes(fromHex(tradeOwner)));
-  fieldsInner.add(Loader.Cardano.PlutusData.new_bytes(requestedAmount));
-  fieldsInner.add(Loader.Cardano.PlutusData.new_bytes(fromHex(privateRecip)));
-  const tradeDetails = Loader.Cardano.PlutusList.new();
-  tradeDetails.add(
-    Loader.Cardano.PlutusData.new_constr_plutus_data(
-      Loader.Cardano.ConstrPlutusData.new(
-        Loader.Cardano.Int.new_i32(0),
-        fieldsInner
-      )
-    )
-  );*/
   const datum = Loader.Cardano.PlutusData.new_constr_plutus_data(
     Loader.Cardano.ConstrPlutusData.new(
       Loader.Cardano.Int.new_i32(DATUM_TYPE.Offer),
@@ -79,16 +66,6 @@ const DATUM_TYPE = {
   Offer: 0,
 }
 
-// ""transaction submit error ShelleyTxValidationError ShelleyBasedEraAlonzo (ApplyTxError [UtxowFailure (WrappedShelleyEraFailure (UtxoFailure 
-// (UtxosFailure (ValidationTagMismatch (IsValid True) (FailedUnexpectedly [PlutusFailure \"\\n
-// The 3 arg plutus script (PlutusScript ScriptHash \\\"fa3f65cc21b15b9e082991bb1ec420be1b2e1bc05d3ed82aacf973f3\\\") fails.\\nCek
-// Error An error has occurred:  User error:\\nThe provided Plutus code called 'error'.\\n
-// The data is: Constr 0 [
-                // Constr 0 [
-                  // B \\\"\\\\254\\\\t!\\\\207\\\\165;-\\\\238\\\\242\\\\SI\\\\CANRX\\\\248\\\\1
-                  // 88n\\\\DC2z\\\\182\\\\250\\\\DLE\\\\132\\\\230/\\\\b0\\\\221\\\\239\\\",B \\\"\\\",
-                  // B \\\"\\\\254\\\\t!\\\\207\\\\165;-\\\\238\\\\242\\\\SI\\\\CANRX\\\\248\\\\1"
-
 const BUY = (index) => {
   const redeemerData = Loader.Cardano.PlutusData.new_constr_plutus_data(
     Loader.Cardano.ConstrPlutusData.new(
@@ -101,7 +78,7 @@ const BUY = (index) => {
     Loader.Cardano.BigNum.from_str(index),
     redeemerData,
     Loader.Cardano.ExUnits.new(
-      Loader.Cardano.BigNum.from_str("11000000"),
+      Loader.Cardano.BigNum.from_str("11000000"), // These numbers are *huge*
       Loader.Cardano.BigNum.from_str("4500000000")
                                    // 19489133")
     )
