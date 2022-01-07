@@ -30,8 +30,8 @@ const CONTRACT = () => {
 
 const CONTRACT_ADDRESS = () =>
   Loader.Cardano.Address.from_bech32(
-    //"addr_test1wrar7ewvyxc4h8sg9xgmk8kyyzlpktsmcpwnakp24nuh8ucma9934"
-    "addr_test1wqwkldau5tz2w4ju4r7ulz5hlfm60dlq89mc30ype4hxx9cqkcj6h"
+    "addr_test1wrar7ewvyxc4h8sg9xgmk8kyyzlpktsmcpwnakp24nuh8ucma9934"
+    // "addr_test1wqwkldau5tz2w4ju4r7ulz5hlfm60dlq89mc30ype4hxx9cqkcj6h"
   );
 
 // Datums -- This is going to take a bit to unpack everything and then we need to construct our transactions.
