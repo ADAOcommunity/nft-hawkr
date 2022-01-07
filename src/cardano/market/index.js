@@ -1,6 +1,7 @@
 import Loader from "./loader.js";
 import {
   assetsToValue,
+  assetsToDatum,
   fromAscii,
   fromHex,
   getTradeDetails,
@@ -34,14 +35,13 @@ const CONTRACT_ADDRESS = () =>
     // "addr_test1wqwkldau5tz2w4ju4r7ulz5hlfm60dlq89mc30ype4hxx9cqkcj6h"
   );
 
-// Datums -- This is going to take a bit to unpack everything and then we need to construct our transactions.
+// Datums
 const OFFER = ({ tradeOwner, requestedAmount, privateRecip }) => {
-  /* - This was used while trying to troubleshoot datum serialization.
   const fieldsInner = Loader.Cardano.PlutusList.new();
   fieldsInner.add(Loader.Cardano.PlutusData.new_bytes(fromHex(tradeOwner)));
-  fieldsInner.add(Loader.Cardano.PlutusData.new_map(Loader.Cardano.PlutusMap.from_bytes(
-    toHex(fromAscii('{"", {"", 1000000}}'))
-  )));
+  fieldsInner.add(Loader.Cardano.PlutusData.new_map(
+    assetsToDatum(valueToAssets(requestedAmount))
+  ));
   fieldsInner.add(Loader.Cardano.PlutusData.new_bytes(fromHex(privateRecip)));
   const tradeDetails = Loader.Cardano.PlutusList.new();
   tradeDetails.add(
@@ -51,9 +51,9 @@ const OFFER = ({ tradeOwner, requestedAmount, privateRecip }) => {
         fieldsInner
       )
     )
-  );*/
+  );
 
-  const fieldsInner = Loader.Cardano.PlutusList.new();
+  /*const fieldsInner = Loader.Cardano.PlutusList.new();
   fieldsInner.add(Loader.Cardano.PlutusData.new_bytes(fromHex(tradeOwner)));
   fieldsInner.add(Loader.Cardano.PlutusData.new_bytes(requestedAmount));
   fieldsInner.add(Loader.Cardano.PlutusData.new_bytes(fromHex(privateRecip)));
@@ -65,7 +65,7 @@ const OFFER = ({ tradeOwner, requestedAmount, privateRecip }) => {
         fieldsInner
       )
     )
-  );
+  );*/
   const datum = Loader.Cardano.PlutusData.new_constr_plutus_data(
     Loader.Cardano.ConstrPlutusData.new(
       Loader.Cardano.Int.new_i32(DATUM_TYPE.Offer),
@@ -101,8 +101,8 @@ const BUY = (index) => {
     Loader.Cardano.BigNum.from_str(index),
     redeemerData,
     Loader.Cardano.ExUnits.new(
-      Loader.Cardano.BigNum.from_str("694200"),
-      Loader.Cardano.BigNum.from_str("300000000")
+      Loader.Cardano.BigNum.from_str("11000000"),
+      Loader.Cardano.BigNum.from_str("4500000000")
                                    // 19489133")
     )
   );
@@ -286,6 +286,17 @@ class Escrow {
     txBuilder.set_collateral(inputs);
   }
 
+  printTxBody(txBody) {
+    const outputs = txBody.outputs();
+    for (let i = 0; i < outputs.len(); i++) {
+      // console.log("Output " + JSON.stringify(i) + ":" + JSON.stringify(valueToAssets(outputs.get(i).amount())))
+      // txBuilder.add_output(outputs.get(i));
+      let output = outputs.get(i);
+      console.log("To: " + output.address().to_bech32());
+      console.log("Amount: " + JSON.stringify(valueToAssets(output.amount())));
+    }
+  }
+
   /**
    * @private
    */
@@ -420,6 +431,8 @@ class Escrow {
 
     txBuilder.add_change_if_needed(changeAddress.to_address());
     const txBody = txBuilder.build();
+    // console.log(JSON.stringify(txBody.outputs()));
+    this.printTxBody(txBody);
     const tx = Loader.Cardano.Transaction.new(
       txBody,
       Loader.Cardano.TransactionWitnessSet.from_bytes(
