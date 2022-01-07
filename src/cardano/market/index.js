@@ -169,20 +169,21 @@ class Escrow {
     const utxos = await this.blockfrostRequest(
       `/addresses/${CONTRACT_ADDRESS().to_bech32()}/utxos`
     );
+    let offerAssets = valueToAssets(offer);
 
-    utxos = utxos.filter(async (utxo) => {
-      let assetValue = assetsToValue(utxo.amount)
-      if (assetValue.compare(offer) == 1) {
+    const filteredUtxos = utxos.filter((utxo) => {
+      //if (this.utxoMatches(utxo.amount, offerAssets) == true) {
+      if (assetsToValue(utxo.amount).compare(offer) == 1) {
         return true;
       } else {
         return false;
       }
     })
 
-    console.log(JSON.stringify(utxos))
+    console.log(JSON.stringify(filteredUtxos))
 
     return await Promise.all(
-      utxos.map(async (utxo) => {
+      filteredUtxos.map((utxo) => {
         return {
           offer,
           utxo: Loader.Cardano.TransactionUnspentOutput.new(
@@ -314,6 +315,7 @@ class Escrow {
       );
     });
     for (let i = 0; i < outputs.len(); i++) {
+      console.log("Output " + JSON.stringify(i) + ":" + JSON.stringify(valueToAssets(outputs.get(i).amount())))
       txBuilder.add_output(outputs.get(i));
     }
     if (scriptUtxo) {
@@ -592,8 +594,16 @@ class Escrow {
         value,
         {index:0}
       )); // buyer receiving Offer
+    
+    let requestedAssets = valueToAssets(requestedAmount);
+    requestedAssets.forEach((asset) => {
+      if (asset.unit == "lovelace") {
+        asset.quantity = "2000000"
+      }
+    }) // TODO - This value may need to change? Should be based on a function.
+    const requestMod = assetsToValue(requestedAssets);
    
-    console.log("requestedAmount: " + valueToAssets(requestedAmount));
+    console.log("requestedAmount: " + JSON.stringify(valueToAssets(requestMod)));
     outputs.add(
       this.createOutput(
         nTradeOwnerAddress.to_address(),
@@ -606,7 +616,7 @@ class Escrow {
           , quantity: "1"
           }
         ]),*/
-        requestedAmount,
+        requestMod,
         {index:1}
       ));
 
