@@ -170,7 +170,7 @@ class Escrow {
       `/addresses/${CONTRACT_ADDRESS().to_bech32()}/utxos`
     );
 
-    utxos.filter(async (utxo) => {
+    utxos = utxos.filter(async (utxo) => {
       let assetValue = assetsToValue(utxo.amount)
       if (assetValue.compare(offer) == 1) {
         return true;
