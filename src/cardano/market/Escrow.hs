@@ -56,9 +56,14 @@ data ContractInfo = ContractInfo
 toFraction :: Float -> Integer
 toFraction p = toInteger $ floor (1 / (p / 1000))
 
-contractInfo = ContractInfo 
+{-- contractInfo = ContractInfo 
     { owner1 = ("7175e003e0749ce453fc419933297de37f4e859324dc79d1156b3699f9", 1000, 1111) -- 1% 0.9%
     , owner2 = ("711eae0514665de6ac91a0ba5387e76474ebda9cc70c7301cb7a125261", 10000) -- 0.1%
+    --}
+
+contractInfo = ContractInfo
+    { owner1 = ("7075e003e0749ce453fc419933297de37f4e859324dc79d1156b3699f9", 1000, 1111)
+    , owner2 = ("701eae0514665de6ac91a0ba5387e76474ebda9cc70c7301cb7a125261", 10000)
     }
 
 -- Data and Redeemers
@@ -92,11 +97,11 @@ tradeValidate :: ContractInfo -> TradeDatum -> TradeAction -> ScriptContext -> B
 tradeValidate contractInfo@ContractInfo{..} tradeDatum tradeAction context = case tradeDatum of
     Offer TradeDetails{..} -> case tradeAction of
         Buy ->
-            ((txInfo `txSignedBy` privateRecip) || privateRecip == tradeOwner) &&
-            valuePaidTo txInfo tradeOwner == requestedAmount &&
-            correctFees (valueOf requestedAmount adaSymbol adaToken) tradeOwner
-        Cancel -> 
-            txInfo `txSignedBy` tradeOwner
+            traceIfFalse "The trade is private, permission denied." ((txInfo `txSignedBy` privateRecip) || privateRecip == tradeOwner) &&
+            traceIfFalse "The required value is not paid to the seller." (geq (valuePaidTo txInfo tradeOwner) requestedAmount) &&
+            traceIfFalse "The required fee(s) are not paid to the DAO." correctFees
+        Cancel ->
+            traceIfFalse "The seller must sign to cancel, permission denied." (txInfo `txSignedBy` tradeOwner)
     where
         txInfo :: TxInfo
         txInfo = scriptContextTxInfo context
@@ -108,10 +113,10 @@ tradeValidate contractInfo@ContractInfo{..} tradeDatum tradeAction context = cas
         (owner1PubKeyHash, owner1Fee1, owner1Fee2) = owner1
         (owner2PubKeyHash, owner2Fee1) = owner2
 
-        correctFees :: Integer -> PubKeyHash -> Bool
-        correctFees lovelaceAmount tradeRecipient =
-            Ada.fromValue (valueLockedBy txInfo owner1PubKeyHash) >= Ada.lovelaceOf 4000000 &&
-            Ada.fromValue (valueLockedBy txInfo owner2PubKeyHash) >= Ada.lovelaceOf 1000000
+        correctFees :: Bool
+        correctFees =
+            geq (valueLockedBy txInfo owner1PubKeyHash) (Ada.lovelaceValueOf 4000000) &&
+            geq (valueLockedBy txInfo owner2PubKeyHash) (Ada.lovelaceValueOf 1000000)
 
 data Trade
 instance Scripts.ValidatorTypes Trade where

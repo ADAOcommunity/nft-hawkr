@@ -31,8 +31,7 @@ const CONTRACT = () => {
 
 const CONTRACT_ADDRESS = () =>
   Loader.Cardano.Address.from_bech32(
-    "addr_test1wrar7ewvyxc4h8sg9xgmk8kyyzlpktsmcpwnakp24nuh8ucma9934"
-    // "addr_test1wqwkldau5tz2w4ju4r7ulz5hlfm60dlq89mc30ype4hxx9cqkcj6h"
+    "addr_test1wzfez8nmf2xayv7fl70lfg9uccy9zrxkqejc2p0jsls4cvcu6elu2"
   );
 
 // Datums
@@ -78,8 +77,8 @@ const BUY = (index) => {
     Loader.Cardano.BigNum.from_str(index),
     redeemerData,
     Loader.Cardano.ExUnits.new(
-      Loader.Cardano.BigNum.from_str("11000000"), // These numbers are *huge*
-      Loader.Cardano.BigNum.from_str("4500000000")
+      Loader.Cardano.BigNum.from_str("4994200"), // These numbers are *huge*
+      Loader.Cardano.BigNum.from_str("1999589133")
                                    // 19489133")
     )
   );
@@ -437,8 +436,15 @@ class Escrow {
 
     console.log("Full Tx Size", signedTx.to_bytes().length);
 
-    const txHash = await window.cardano.submitTx(toHex(signedTx.to_bytes()));
-    return txHash;
+    console.log(toHex(signedTx.to_bytes()));
+
+    try {
+      const txHash = await window.cardano.submitTx(toHex(signedTx.to_bytes()));
+      return txHash;
+    } catch (e) {
+      console.log(e.message.length)
+      console.log(e.message)
+    }
   }
 
   async load() {
@@ -462,7 +468,7 @@ class Escrow {
       owner1: {
         address: Loader.Cardano.Address.from_bech32(
           //"addr1w967qqlqwjwwg5lugxvnx2taudl5apvnynw8n5g4dvmfn7g0j8gtz"
-          "addr_test1wp67qqlqwjwwg5lugxvnx2taudl5apvnynw8n5g4dvmfn7g56n5y8"
+          "addr_test1wp67qqlqwjwwg5lugxvnx2taudl5apvnynw8n5g4dvmfn7g56n5y8" // 7075e003e0749ce453fc419933297de37f4e859324dc79d1156b3699f9
         ),
         fee1: Loader.Cardano.BigNum.from_str("1000"), // 1.0%
         fee2: Loader.Cardano.BigNum.from_str("1111"), // 0.9%
@@ -470,7 +476,7 @@ class Escrow {
       owner2: {
         address: Loader.Cardano.Address.from_bech32(
           // "addr1wy02upg5vew7dty35za98pl8v36whk5ucux8xqwt0gf9ycglp29ku"
-          "addr_test1wq02upg5vew7dty35za98pl8v36whk5ucux8xqwt0gf9ycgyf7eee"
+          "addr_test1wq02upg5vew7dty35za98pl8v36whk5ucux8xqwt0gf9ycgyf7eee" // 701eae0514665de6ac91a0ba5387e76474ebda9cc70c7301cb7a125261
         ),
         fee: Loader.Cardano.BigNum.from_str("10000"), // 0.1%
       },
@@ -659,16 +665,25 @@ class Escrow {
       )
     );
 
+    const nTradeOwnerAddress = Loader.Cardano.BaseAddress.from_address(
+      Loader.Cardano.Address.from_bech32(
+        tradeOwnerAddress
+      )
+    );
+
     const utxos = (await window.cardano.getUtxos()).map((utxo) =>
       Loader.Cardano.TransactionUnspentOutput.from_bytes(fromHex(utxo))
     );
 
     const offerUtxo = this.getOffer(offer);
+    if (offerUtxo === undefined) {
+      console.log("uh oh, no cancellation?")
+    }
 
     const offerDatum = OFFER({
-      tradeOwner: toHex(tradeOwnerAddress.payment_cred().to_keyhash().to_bytes()),
+      tradeOwner: toHex(nTradeOwnerAddress.payment_cred().to_keyhash().to_bytes()),
       requestedAmount: requestedAmount,
-      privateRecip: toHex(tradeOwnerAddress.payment_cred().to_keyhash().to_bytes())
+      privateRecip: toHex(nTradeOwnerAddress.payment_cred().to_keyhash().to_bytes())
     });
     datums.add(offerDatum);
 
@@ -677,7 +692,7 @@ class Escrow {
     outputs.add(this.createOutput(walletAddress.to_address(), value)); // Seller canceling offer.
 
     const requiredSigners = Loader.Cardano.Ed25519KeyHashes.new();
-    requiredSigners.add(walletAddress.payment_cred().to_keyhash());
+    requiredSigners.add(nTradeOwnerAddress.payment_cred().to_keyhash());
     txBuilder.set_required_signers(requiredSigners);
 
     const txHash = await this.finalizeTx({
