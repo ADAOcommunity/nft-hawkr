@@ -56,14 +56,9 @@ data ContractInfo = ContractInfo
 toFraction :: Float -> Integer
 toFraction p = toInteger $ floor (1 / (p / 1000))
 
-{-- contractInfo = ContractInfo 
-    { owner1 = ("7175e003e0749ce453fc419933297de37f4e859324dc79d1156b3699f9", 1000, 1111) -- 1% 0.9%
-    , owner2 = ("711eae0514665de6ac91a0ba5387e76474ebda9cc70c7301cb7a125261", 10000) -- 0.1%
-    --}
-
 contractInfo = ContractInfo
-    { owner1 = ("7075e003e0749ce453fc419933297de37f4e859324dc79d1156b3699f9", 1000, 1111)
-    , owner2 = ("701eae0514665de6ac91a0ba5387e76474ebda9cc70c7301cb7a125261", 10000)
+    { owner1 = ("75e003e0749ce453fc419933297de37f4e859324dc79d1156b3699f9", 1000, 1111)
+    , owner2 = ("1eae0514665de6ac91a0ba5387e76474ebda9cc70c7301cb7a125261", 10000)
     }
 
 -- Data and Redeemers
